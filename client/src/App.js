@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from "react";
 import socketIOClient from "socket.io-client";
 import Card from "./Card";
+import Socket from "./Socket";
 
 const ENDPOINT = "http://localhost:4001";
 
@@ -29,7 +30,7 @@ function App() {
         socket.emit("start", matchId);
     }
 
-    function nulledCardsBy(card){
+    function nulledCardsBy(socket, card){
         var nulledCards = [];
 
         const cartas = cards.length > 0 ? cards : trueCards;
@@ -74,62 +75,48 @@ function App() {
 
     }
 
+    const events = {
+        "new": (socket, data) => {
+            setMatchSet(true);
+            setMatchId(data);
+        },
+        "cards": (socket, data) => {
+            var cards = data.map((card) => {
+                return {number: card, played: false}
+            })
 
+            setCards(cards);
+            trueCards = cards;
 
-    useEffect(() => {
-        if (socket){
-            socket.on("new", data => {
-                setMatchSet(true);
-                setMatchId(data);
-            });
-            socket.on("cards", data => {
+            setCardsPlayed(0)
+            console.log(data)
+        },
+        "play": (socket, card) => {
+            console.log("HAVE " + cardPlayed )
+            // console.log(socket, cards, cardsPlayed, cardPlayed, nulled)
+            console.log("PLAYED " + card )
+            if (cardPlayed != card) {
+                setCardPlayed(card);
+                nulledCardsBy(socket, card);
+            }
 
-                var cards = data.map((card) => {
-                    return {number: card, played: false}
-                })
+        },
+        "next": (socket, data) => {
+            setCards([]);
+            trueCards = [];
+            setCardsPlayed(0);
+            setCardPlayed(null);
+        },
+        "nulled": (socket, [...cards]) => {
+            setNulled([...nulled, ...cards]);
+        },
+        "over": (socket, data) => {
+            console.log("PERDISTE ZOPENCO")
+        }}
 
-                setCards(cards);
-                trueCards = cards;
-
-                setCardsPlayed(0)
-                console.log(data)
-            });
-            socket.on("play", card => {
-                console.log("HAVE " + cardPlayed )
-                // console.log(socket, cards, cardsPlayed, cardPlayed, nulled)
-                console.log("PLAYED " + card )
-                if (cardPlayed != card) {
-                    setCardPlayed(card);
-                    nulledCardsBy(card, cards);
-                }
-
-            });
-            socket.on("next", () => {
-                setCards([]);
-                trueCards = [];
-                setCardsPlayed(0);
-                setCardPlayed(null);
-            });
-            // socket.on("nulled", ([...cards]) => {
-            //     setNulled([...nulled, ...cards]);
-            // });
-            socket.on("over", () => {
-                console.log("PERDISTE ZOPENCO")
-            });
-        } else {
-            var s = socketIOClient(ENDPOINT);
-            setSocket(s);
-        }
-
-    }, [socket, cards, cardsPlayed, cardPlayed, nulled]);
-
-    useEffect(() => {
-        if (socket)
-            return () => socket.disconnect();
-    }, []);
 
     return (
-        <div>
+        <Socket events={events}>
             <div style={{ display: cards.length > 0 ? "none" : "flex" }}>
                 <input type="text" value={matchSet ? matchId : ''} />
                 <button onClick={() => { newMatch() }}> New </button>
@@ -142,20 +129,18 @@ function App() {
             <div style={{ display: cards.length > 0 ? "block" : "none"  }}>
                 <div style={{ width: 97, height:  150, background: "dimgrey", margin: '0 auto'}}>
                     {cardPlayed &&
-                        <Card small card={cardPlayed}/>
+                    <Card small card={cardPlayed}/>
                     }
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: "space-evenly", flexWrap: 'wrap' }}>
-                { cards && cards.map(({number, played}) =>
-                    <Card card={number} nulled={number < cardPlayed} played={played} cursor={"pointer"} play={() => { playCard(number) }}/>
-                ) }
+                    { cards && cards.map(({number, played}) =>
+                        <Card card={number} nulled={number < cardPlayed} played={played} cursor={"pointer"} play={() => { playCard(number) }}/>
+                    ) }
                 </div>
             </div>
-        </div>
-
-
-    );
+        </Socket>
+);
 }
 
 export default App;
