@@ -22,7 +22,7 @@ function makeid(length) {
 
 const io = socketIo(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
@@ -91,7 +91,12 @@ io.on("connection", (socket) => {
 
         var lives = match.lives
 
-        match.lives = lives - cards.length;
+        for (var cardNulled in cards){
+            if (!match.nulled.includes(cardNulled)){
+                match.lives = lives - 1;
+                match.nulled.push(cardNulled)
+            }
+        }
 
         console.log("lives: " + match.lives)
 
@@ -101,8 +106,15 @@ io.on("connection", (socket) => {
             io.emit("over")
         }
 
+        if (match.players.length == match.playersFinished){
+            match.turn += 1;
+            match.playersFinished = 0;
+            match.nulled = [];
+            io.emit("next")
+        }
+
         console.log("nulled " + cards.join(","))
-        // console.log(matches)
+        console.log("playersFinished" + match.playersFinished)
     });
 
     socket.on("play", ({card, finished}) => {
@@ -120,6 +132,7 @@ io.on("connection", (socket) => {
 
         console.log("play " + card + " by " + socket.id)
         // console.log(matches)
+        console.log("playersFinished" + match.playersFinished)
     });
 
     socket.on("join", (id) => {

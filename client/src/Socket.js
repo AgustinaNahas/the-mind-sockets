@@ -1,23 +1,35 @@
 import React, {useEffect, useState} from "react";
 import socketIOClient from "socket.io-client";
+import {SocketContext} from "./SocketContext";
 
-function Socket({events}) {
+function Socket({events, children}) {
+
+    const ENDPOINT = "http://192.168.1.18:4001";
+
+    const [socket, setSocket] = useState(null);
+
     useEffect(() => {
-        var socket = socketIOClient(ENDPOINT);
+        if (!socket){
+            var s = socketIOClient(ENDPOINT);
+            setSocket(s)
 
-        for(const key in events){
-            socket.on(key, data => {
-                events[key](data)
-            });
+            for(const key in events){
+                s.on(key, data => {
+                    events[key](s, data)
+                });
+            }
         }
-
-        return () => socket.disconnect();
-
     });
 
-    return (
-        <div></div>
-    );
+    useEffect(() => {
+        if (socket) return () => socket.disconnect();
+    }, [socket]);
+
+    return socket ?
+        <SocketContext.Provider value={socket}>
+            {children}
+        </SocketContext.Provider>
+            : <div></div>;
 }
 
 export default Socket;
